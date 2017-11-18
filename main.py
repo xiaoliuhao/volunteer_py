@@ -9,12 +9,14 @@ import json
 from collections import deque
 import pymysql
 
-def saveFile(file_path,data):
+
+def saveFile(file_path, data):
     save_path = file_path
-    print('记录日志:'+file_path)
-    f_obj = open(save_path, 'a+') # wb 表示打开方式
-    f_obj.write(data+'\r\n')
+    print('记录日志:' + file_path)
+    f_obj = open(save_path, 'a+')  # wb 表示打开方式
+    f_obj.write(data + '\r\n')
     f_obj.close()
+
 
 def getOpener(head):
     # deal with the Cookies
@@ -27,6 +29,8 @@ def getOpener(head):
         header.append(elem)
     opener.addheaders = header
     return opener
+
+
 def my_openurl(url):
     header = {
         'Connection': 'Keep-Alive',
@@ -41,41 +45,54 @@ def my_openurl(url):
     opener = getOpener(header)
     op = opener.open(url)
     return op
-def insert_db(db,json_str):
+
+
+def insert_db(db, json_str):
     # 使用 cursor() 方法创建一个游标对象 cursor
     cursor = db.cursor()
     json_obj = json.loads(json_str)
-    sql = "insert into t_volunteer.t_volunteer_info set v_uid=\""+json_obj['v_id']+"\", "+"v_name=\""+json_obj['name']+"\", v_sex=\""+json_obj['sex']+"\", v_volunteer_time=\""+json_obj['volunteer_time']+"\", v_organization_oid=\""+json_obj['organization']['o_id']+"\", v_organization_name=\""+json_obj['organization']['o_name']+"\", v_info_json=\""+db.escape_string(json_str)+"\""
-    saveFile('./log/insert_sql.log',sql)
+    sql = "insert into t_volunteer.t_volunteer_info set v_uid=\"" + json_obj['v_id'] + "\", " + "v_name=\"" + json_obj[
+        'name'] + "\", v_sex=\"" + json_obj['sex'] + "\", v_volunteer_time=\"" + json_obj[
+              'volunteer_time'] + "\", v_organization_oid=\"" + json_obj['organization'][
+              'o_id'] + "\", v_organization_name=\"" + json_obj['organization'][
+              'o_name'] + "\", v_info_json=\"" + db.escape_string(json_str) + "\""
+    saveFile('./log/insert_sql.log', sql)
     # value = db.escape_string(value)
     # 使用 execute()  方法执行 SQL 查询
     cursor.execute(sql)
     db.commit()
 
-def GetMiddleStr(content,startStr,endStr):
+
+def GetMiddleStr(content, startStr, endStr):
     startIndex = content.index(startStr)
-    if startIndex>=0:
+    if startIndex >= 0:
         startIndex += len(startStr)
     endIndex = content[startIndex:].index(endStr)
     return content[startIndex:][:endIndex]
+
+
 def get_volunteer_info(data):
-    result = GetMiddleStr(data,'编号','个人动态')
-    v_id = GetMiddleStr(result,"</span> ","</p></div>")
-    name = GetMiddleStr(result,'姓名：</span>','</p>')
-    volunteer_time = GetMiddleStr(result, '服务时间：</span>','</p>')
-    sex = GetMiddleStr(result,'性别：</span>','</p>')
-    organization_id = GetMiddleStr(result,"oid=","\" class=\"")
-    organization_name = GetMiddleStr(result,"class=\"black\"> ","</a><br/>")
-    volunteer_info = {'v_id':v_id,'name':name, 'volunteer_time':volunteer_time,'sex':sex,'organization':{'o_id':organization_id,'o_name':organization_name}}
-    info_json = json.dumps(volunteer_info,ensure_ascii=False)
+    result = GetMiddleStr(data, '编号', '个人动态')
+    v_id = GetMiddleStr(result, "</span> ", "</p></div>")
+    name = GetMiddleStr(result, '姓名：</span>', '</p>')
+    volunteer_time = GetMiddleStr(result, '服务时间：</span>', '</p>')
+    sex = GetMiddleStr(result, '性别：</span>', '</p>')
+    organization_id = GetMiddleStr(result, "oid=", "\" class=\"")
+    organization_name = GetMiddleStr(result, "class=\"black\"> ", "</a><br/>")
+    volunteer_info = {'v_id': v_id, 'name': name, 'volunteer_time': volunteer_time, 'sex': sex,
+                      'organization': {'o_id': organization_id, 'o_name': organization_name}}
+    info_json = json.dumps(volunteer_info, ensure_ascii=False)
     return info_json
+
 
 def add_to_queue(url):
     if url not in visited:
         queue.append(url)
         print('加入队列 --->  ' + url)
+
+
 # 打开数据库连接
-db = pymysql.connect("127.0.0.1","root","","t_volunteer",charset="utf8")
+db = pymysql.connect("127.0.0.1", "root", "", "t_volunteer", charset="utf8")
 
 queue = deque()
 visited = set()
@@ -91,7 +108,7 @@ cnt = 0
 
 while queue:
     url = queue.popleft()  # 队首元素出队
-    saveFile('./log/visit_url.log',url)
+    saveFile('./log/visit_url.log', url)
     visited |= {url}  # 标记为已访问
     print('已经抓取: ' + str(cnt) + '   正在抓取 <---  ' + url)
     cnt += 1
@@ -103,24 +120,24 @@ while queue:
     # 避免程序异常中止, 用try..catch处理异常
     try:
         data = urlop.read().decode('utf-8')
-        if('oid' in url):
-            saveFile('./log/organization.log',url)
-            #挂靠组织信息，抓取组织下的成员uid加入队列
+        if ('oid' in url):
+            saveFile('./log/organization.log', url)
+            # 挂靠组织信息，抓取组织下的成员uid加入队列
             uidlist = re.compile('uid=[0-9]{0,10}')
             for uid in uidlist.findall(data):
                 add_to_queue(person_url + uid)
-        if('uid' in url):
-            #成员信息，获取成员信息，并把挂靠组织加入搜索队列
+        if ('uid' in url):
+            # 成员信息，获取成员信息，并把挂靠组织加入搜索队列
             saveFile('./log/volunteer_info.log', url)
             info_json = get_volunteer_info(data)
             insert_db(db, info_json)
             oidlist = re.compile('oid=[0-9]{0,10}')
             for oid in oidlist.findall(data):
-                print('==================================================='+oid)
+                print('===================================================' + oid)
                 add_to_queue(organ_url + oid)
         else:
             pass
-        # print(data)
-        #     saveFile(str(cnt), data)
-    except :
+            # print(data)
+            #     saveFile(str(cnt), data)
+    except:
         continue

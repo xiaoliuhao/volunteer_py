@@ -16,8 +16,11 @@ class mysql_db:
         try:
             conn = pymysql.connect(self._host, self._dbuser, self._dbpassword, self._dbname,charset="utf8")
         except:
-            conn = '123'
+            conn = False
         return conn
 
-    def insert(self):
-        print('hello')
+    def select(self,filed = "*", table = '', more = ''):
+        pass
+
+    def close(self):
+        self._conn.close()

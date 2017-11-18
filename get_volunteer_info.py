@@ -8,7 +8,7 @@ import json
 
 from collections import deque
 import pymysql
-
+from lxml import etree
 
 def saveFile(name, data):
     save_path = './cache/person/'+name+'.txt'
